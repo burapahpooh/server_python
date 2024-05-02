@@ -1,5 +1,6 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import urllib.parse
+from Crypto.Hash import SHA256
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
@@ -353,31 +354,59 @@ class MyServer(BaseHTTPRequestHandler):
                 self.send_response(400)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"code":404}).encode())		
-        elif self.path == "/database":
+                self.wfile.write(json.dumps({"code":404}).encode())
+
+        elif self.path == "/login":
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length).decode('utf-8')
             parsed_data = json.loads(post_data)
-            if parsed_data['query']!=None and parsed_data['query'].strip() != '':
-                query = parsed_data["query"]
+            if parsed_data['username']!=None and parsed_data['username'].strip() != '' and parsed_data['password']!=None and parsed_data['password'].strip() != '':
+                username = parsed_data["username"]
+                password = parsed_data["password"]
                 self.send_response(200)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
-                myquery = json.loads(query)
-                userQuery = UserData.find(myquery)
+                byte_password = bytes(password, 'utf-8')
+                hash_password = SHA256.new(data=byte_password).hexdigest()
+                user_login_query = { "user_username": { "$eq": username },"user_password": { "$eq": hash_password } }
+                userQuery = UserData.find(user_login_query)
                 query_data=[]
                 if(userQuery!=None):
                     query_data = [parse_json(x) for x in userQuery]
                 else:
-                    query_data=[]
-                response = {"query":query,
-							"data":query_data}
+                    query_data=["NO USER"]
+                response = {"data":query_data}
                 self.wfile.write(json.dumps(response).encode())
             else:
                 self.send_response(400)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"code":404}).encode())
+		
+        # elif self.path == "/database":
+        #     content_length = int(self.headers['Content-Length'])
+        #     post_data = self.rfile.read(content_length).decode('utf-8')
+        #     parsed_data = json.loads(post_data)
+        #     if parsed_data['query']!=None and parsed_data['query'].strip() != '':
+        #         query = parsed_data["query"]
+        #         self.send_response(200)
+        #         self.send_header("Content-type", "application/json")
+        #         self.end_headers()
+        #         myquery = json.loads(query)
+        #         userQuery = UserData.find(myquery)
+        #         query_data=[]
+        #         if(userQuery!=None):
+        #             query_data = [parse_json(x) for x in userQuery]
+        #         else:
+        #             query_data=[]
+        #         response = {"query":query,
+		# 					"data":query_data}
+        #         self.wfile.write(json.dumps(response).encode())
+        #     else:
+        #         self.send_response(400)
+        #         self.send_header("Content-type", "application/json")
+        #         self.end_headers()
+        #         self.wfile.write(json.dumps({"code":404}).encode())
         else:
             self.send_response(400)
             self.send_header("Content-type", "application/json")
